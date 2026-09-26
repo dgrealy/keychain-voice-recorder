@@ -19,10 +19,13 @@ transcribes them with Whisper, tidies them up with a local Ollama model, and app
 | Receiver  | [`mac/voicenotes/receiver.py`](mac/voicenotes/receiver.py) | HTTP server that drops uploads into the inbox |
 | Processor | [`mac/voicenotes/processor.py`](mac/voicenotes/processor.py) | inbox → Whisper → Ollama → `notes.md` |
 
+- [`docs/SETUP.md`](docs/SETUP.md): step-by-step setup and test guide (start here)
 - [`docs/PROTOCOL.md`](docs/PROTOCOL.md): the contract between the three components
 - [`docs/HARDWARE.md`](docs/HARDWARE.md): parts, wiring and LED patterns
 
 ## 1. Configure
+
+For the full procedure with a test after each step, follow [`docs/SETUP.md`](docs/SETUP.md). The sections below are a short summary.
 
 ```sh
 cp config.example.yaml config.yaml    # git-ignored
