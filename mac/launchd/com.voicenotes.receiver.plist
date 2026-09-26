@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Template: install.sh fills in the __PLACEHOLDERS__. Keeps the receiver running from login. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.voicenotes.receiver</string>
+  <key>ProgramArguments</key>
+  <array><string>__PYTHON__</string><string>-m</string><string>voicenotes.receiver</string></array>
+  <key>WorkingDirectory</key><string>__MAC_DIR__</string>
+  <key>EnvironmentVariables</key>
+  <dict><key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardErrorPath</key><string>__STATE_DIR__/launchd-receiver.err</string>
+</dict>
+</plist>

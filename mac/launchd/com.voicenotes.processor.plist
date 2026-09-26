@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Template: install.sh fills in the __PLACEHOLDERS__.
+     Runs the processor whenever the inbox changes, and every 15 minutes as a backstop for retries. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.voicenotes.processor</string>
+  <key>ProgramArguments</key>
+  <array><string>__PYTHON__</string><string>-m</string><string>voicenotes.processor</string></array>
+  <key>WorkingDirectory</key><string>__MAC_DIR__</string>
+  <key>EnvironmentVariables</key>
+  <dict><key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
+  <key>WatchPaths</key>
+  <array><string>__INBOX__</string></array>
+  <key>StartInterval</key><integer>900</integer>
+  <key>RunAtLoad</key><true/>
+  <key>StandardErrorPath</key><string>__STATE_DIR__/launchd-processor.err</string>
+</dict>
+</plist>

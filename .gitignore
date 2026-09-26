@@ -1,0 +1,7 @@
+config.yaml
+firmware/src/generated_config.h
+firmware/.pio/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/

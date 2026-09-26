@@ -1,0 +1,58 @@
+# VoiceNote keychain configuration
+#
+# 1. Copy this file to config.yaml in the same folder. config.yaml is git-ignored,
+#    so your Wi-Fi password and token never get committed.
+# 2. Fill in every value marked  <-- FILL IN
+#
+# The firmware reads this file when it is built. The Mac scripts read it at start-up.
+# After changing anything under wifi, receiver or device, re-flash the keychain.
+
+wifi:
+  ssid: ""                      # <-- FILL IN: home Wi-Fi name
+  password: ""                  # <-- FILL IN
+
+receiver:
+  # Your Mac's local hostname WITHOUT ".local". Find it in
+  # System Settings > General > Sharing > Local hostname
+  # e.g. "Davids-MacBook-Air.local" -> "Davids-MacBook-Air"
+  mac_hostname: ""              # <-- FILL IN
+  fallback_ip: ""               # optional fixed IP for the Mac, used if the hostname lookup fails
+  port: 8765
+  # Shared secret so only your keychain can upload. Generate one with:
+  #   python3 -c "import secrets; print(secrets.token_hex(16))"
+  token: ""                     # <-- FILL IN
+
+device:
+  id: "keychain-01"
+  sync_interval_minutes: 30     # retry interval while notes are waiting to be sent
+  max_recording_minutes: 30     # safety cap if the button is left latched
+  min_recording_seconds: 1.0    # shorter recordings are discarded (accidental presses)
+  mic_gain: 8                   # digital gain; the onboard mic is quiet
+  low_battery_volts: 3.5        # 3 quick blinks when recording starts; warning in the Mac log
+  critical_battery_volts: 3.3   # refuses to record below this
+  battery_divider_ratio: 2.0    # 2.0 for two equal resistors
+  pins:                         # GPIO numbers, not D-numbers. Use -1 for battery_adc if no divider fitted
+    button: 2                   # D1  latching button to GND
+    led: 4                      # D3  LED + 470R-1k resistor to GND
+    battery_adc: 1              # D0  midpoint of the battery divider
+    sd_cs: 21                   # fixed by the Sense expansion board
+
+mac:
+  base_dir: "~/VoiceNotes"      # inbox/, archive/, failed/, notes.md and the log live here
+  notes_file: "notes.md"        # relative to base_dir, or an absolute path
+  log_file: "voicenotes.log"    # relative to base_dir, or an absolute path
+  poll_seconds: 30              # only used by `processor --watch`
+  max_attempts: 3               # failed processing attempts before a note moves to failed/
+
+whisper:
+  model: "mlx-community/whisper-large-v3-mlx"
+  language: "en"
+
+ollama:
+  model: "gemma4:12b-mlx"
+  system_prompt: "mac/prompts/system_prompt.md"   # relative to the repo root, or absolute
+  examples: "mac/prompts/examples.json"
+  options:
+    temperature: 0.4
+    repeat_penalty: 1.0
+    num_ctx: 8192
