@@ -104,6 +104,11 @@ For each note, the receiver writes two files into `<base_dir>/inbox/`, named by 
 
 If two notes share the same second, the second one gets a `_2` suffix, and so on.
 
+The iPhone importer (`mac/voicenotes/iphone.py`) writes the same pair for recordings synced over
+iCloud. Its sidecar uses `device_id` `iphone`, `seq` `0`, an empty `boot_id`, `battery_v` `null`,
+and adds `source_sha256` (of the original file, used for de-duplication). `time_source` is
+`device_clock` when the time comes from the file's metadata or name, otherwise `received`.
+
 The inbox JSON is the device sidecar plus:
 
 | Field               | Meaning                                         |
