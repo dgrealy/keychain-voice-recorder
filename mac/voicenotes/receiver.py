@@ -238,12 +238,16 @@ class Receiver:
         return name
 
     def _unique_name(self, stem: str) -> str:
-        """Return ``stem``, or ``stem_2``, ``stem_3`` ... if it is already taken."""
-        name, n = stem, 1
-        while self._index.has_name(name) or (self.paths.inbox / f"{name}.wav").exists():
-            n += 1
-            name = f"{stem}_{n}"
-        return name
+        return unique_name(self._index, self.paths.inbox, stem)
+
+
+def unique_name(index: Index, inbox: Path, stem: str) -> str:
+    """Return ``stem``, or ``stem_2``, ``stem_3`` ... if it is already taken."""
+    name, n = stem, 1
+    while index.has_name(name) or (inbox / f"{name}.wav").exists():
+        n += 1
+        name = f"{stem}_{n}"
+    return name
 
 
 class Handler(BaseHTTPRequestHandler):

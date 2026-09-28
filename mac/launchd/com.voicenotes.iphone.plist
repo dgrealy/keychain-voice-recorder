@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Template: install.sh fills in the __PLACEHOLDERS__.
+     Imports iPhone recordings whenever a watched folder changes, and once an hour as a backstop
+     (e.g. for a change missed while the Mac was asleep). Each run waits for recordings that are
+     still syncing, so the folder change alone is enough. Only installed when iphone.watch_dirs is set.
+     Run it by hand with mac/bin/import-iphone. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.voicenotes.iphone</string>
+  <key>ProgramArguments</key>
+  <array><string>__PYTHON__</string><string>-m</string><string>voicenotes.iphone</string></array>
+  <key>WorkingDirectory</key><string>__MAC_DIR__</string>
+  <key>EnvironmentVariables</key>
+  <dict><key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
+  <key>WatchPaths</key>
+  <array>__WATCH_DIRS__</array>
+  <key>StartInterval</key><integer>3600</integer>
+  <key>RunAtLoad</key><true/>
+  <key>StandardErrorPath</key><string>__STATE_DIR__/launchd-iphone.err</string>
+</dict>
+</plist>

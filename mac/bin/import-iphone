@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Import iPhone recordings now, instead of waiting for launchd. Arguments are passed on:
+#   mac/bin/import-iphone [--no-wait] [--since YYYY-MM-DD]
+set -euo pipefail
+MAC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PYTHON="${PYTHON:-$MAC_DIR/.venv/bin/python}"
+cd "$MAC_DIR" && exec "$PYTHON" -m voicenotes.iphone "$@"

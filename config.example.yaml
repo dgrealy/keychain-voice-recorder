@@ -44,6 +44,16 @@ mac:
   poll_seconds: 30              # only used by `processor --watch`
   max_attempts: 3               # failed processing attempts before a note moves to failed/
 
+iphone:
+  # Folders iCloud syncs iPhone recordings into (see "Using an iPhone instead" in README.md).
+  # Leave the list empty to turn the importer off. Recordings are only read, never moved.
+  watch_dirs:
+    - "~/Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings"   # Voice Memos
+    # - "~/Library/Mobile Documents/iCloud~is~workflow~my~workflows/Documents/VoiceNotes"  # Shortcut
+  device_id: "iphone"
+  settle_seconds: 30            # a file counts as ready once it has stopped changing for this long
+  max_wait_seconds: 600         # how long one run waits for recordings still syncing
+
 whisper:
   model: "mlx-community/whisper-large-v3-mlx"
   language: "en"
