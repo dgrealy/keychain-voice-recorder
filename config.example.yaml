@@ -51,7 +51,8 @@ iphone:
     - "~/Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings"   # Voice Memos
     # - "~/Library/Mobile Documents/iCloud~is~workflow~my~workflows/Documents/VoiceNotes"  # Shortcut
   device_id: "iphone"
-  settle_seconds: 30            # wait until a file has stopped changing (still recording/syncing)
+  settle_seconds: 30            # a file counts as ready once it has stopped changing for this long
+  max_wait_seconds: 600         # how long one run waits for recordings still syncing
 
 whisper:
   model: "mlx-community/whisper-large-v3-mlx"

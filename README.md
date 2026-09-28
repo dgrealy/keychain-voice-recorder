@@ -115,14 +115,22 @@ instead.
 3. Try it by hand, then re-run the installer to add the launchd agent:
 
 ```sh
-cd mac
-.venv/bin/python -m voicenotes.iphone                     # first run: only memos from now on
-.venv/bin/python -m voicenotes.iphone --since 2026-09-01  # or backfill older memos
-launchd/install.sh                                        # adds com.voicenotes.iphone
+mac/bin/import-iphone                       # first run: only memos from now on
+mac/bin/import-iphone --since 2026-09-01    # or backfill older memos
+mac/launchd/install.sh                      # adds com.voicenotes.iphone
 ```
 
-The importer runs when the Voice Memos folder changes and every 5 minutes. It only reads your
-recordings and never moves or deletes them. It remembers what it has already imported, so
+The importer runs in three ways:
+
+| When | How |
+|------|-----|
+| A memo lands in the Voice Memos folder | launchd starts it. It waits (up to `max_wait_seconds`) for the memo to finish syncing, so the note appears about 30 s after syncing |
+| Once an hour | launchd, as a backstop, e.g. for a change missed while the Mac was asleep |
+| Whenever you like | `mac/bin/import-iphone` (add `--no-wait` to skip memos still syncing). If an automatic run is already going, it says so and leaves it to that run |
+
+Imported notes land in the inbox, which starts the processor as usual.
+
+It only reads your recordings and never moves or deletes them. It remembers what it has already imported, so
 renaming or re-syncing a memo doesn't create a second entry. The recording time comes from the
 timestamp in the file, and falls back to the file date, which the heading marks "approx.".
 

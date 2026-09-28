@@ -5,10 +5,12 @@ Memos, or a Shortcut that saves to iCloud Drive); iCloud syncs the file to the M
 converts it to the 16 kHz mono WAV the processor expects and writes the usual inbox pair
 (``docs/PROTOCOL.md`` section 4). The processor does not know the difference.
 
-Source files are only read, never moved or deleted. Run with::
+Source files are only read, never moved or deleted. It runs when a watched folder changes
+and once an hour (launchd), or by hand::
 
-    python -m voicenotes.iphone                 # import once (what launchd runs)
-    python -m voicenotes.iphone --since 2026-09-01   # also import older recordings
+    mac/bin/import-iphone                       # import now (same as python -m voicenotes.iphone)
+    mac/bin/import-iphone --no-wait             # don't wait for recordings still syncing
+    mac/bin/import-iphone --since 2026-09-01    # also import older recordings
 """
 from __future__ import annotations
 
@@ -159,9 +161,10 @@ class Importer:
                 log.info("First run: importing recordings made from now on (use --since for older ones)")
             self.since = datetime.fromisoformat(self.state.since)
 
-    def candidates(self) -> list[Path]:
-        """Audio files in the watched folders, oldest first. Asks iCloud to download placeholders."""
-        files = []
+    def candidates(self) -> tuple[list[Path], int]:
+        """Audio files in the watched folders, oldest first, and how many are still iCloud
+        placeholders (asked to download, so they count as pending)."""
+        files, placeholders = [], 0
         for d in self.watch_dirs:
             if not d.is_dir():
                 log.warning("Watched folder %s does not exist (or no permission to read it)", d)
@@ -169,18 +172,32 @@ class Importer:
             for p in d.iterdir():
                 if p.name.startswith(".") and p.name.endswith(".icloud"):
                     subprocess.run(["brctl", "download", str(p)], capture_output=True)  # best effort
+                    placeholders += 1
                 elif p.is_file() and p.suffix.lower() in AUDIO_EXTENSIONS:
                     files.append(p)
-        return sorted(files, key=lambda p: p.stat().st_mtime)
+        return sorted(files, key=lambda p: p.stat().st_mtime), placeholders
 
-    def run_once(self) -> int:
-        """Import every new, settled recording. Returns how many went into the inbox."""
+    def run_once(self) -> tuple[int, int]:
+        """Import every new, settled recording.
+
+        Returns
+        -------
+        imported : int
+            How many went into the inbox.
+        pending : int
+            Recordings worth another look soon: still recording or syncing, or failed with
+            attempts left.
+        """
         imported = 0
+        files, pending = self.candidates()
         try:
-            for src in self.candidates():
+            for src in files:
                 st = src.stat()
                 key, sig = str(src), [st.st_size, int(st.st_mtime)]
-                if self.state.seen.get(key) == sig or time.time() - st.st_mtime < self.settle_seconds:
+                if self.state.seen.get(key) == sig:
+                    continue
+                if time.time() - st.st_mtime < self.settle_seconds:
+                    pending += 1
                     continue
                 try:
                     imported += self.import_file(src)
@@ -188,12 +205,36 @@ class Importer:
                     n = self.state.failures[key] = self.state.failures.get(key, 0) + 1
                     log.warning("Could not import %s (attempt %d/%d): %s", src.name, n, MAX_ATTEMPTS, e)
                     if n < MAX_ATTEMPTS:
+                        pending += 1
                         continue
                     log.error("Giving up on %s", src.name)
                 self.state.failures.pop(key, None)
                 self.state.seen[key] = sig
         finally:
             self.state.save()
+        return imported, pending
+
+    def run(self, max_wait: float = 600, poll: float = 10) -> int:
+        """Import, then keep re-checking while recordings are pending, for up to ``max_wait`` seconds.
+
+        launchd starts the importer when a file appears, which is usually before it has
+        finished writing, and it does not notice the writes that follow. Waiting here means
+        that one folder-change event is enough to import the note.
+
+        Returns
+        -------
+        int
+            How many recordings went into the inbox.
+        """
+        deadline = time.monotonic() + max_wait
+        imported, pending = self.run_once()
+        while pending and time.monotonic() < deadline:
+            log.info("%d recording(s) still syncing or retrying; checking again in %ds", pending, poll)
+            time.sleep(poll)
+            n, pending = self.run_once()
+            imported += n
+        if pending:
+            log.warning("%d recording(s) still pending; the next run will pick them up", pending)
         return imported
 
     def import_file(self, src: Path) -> bool:
@@ -237,6 +278,8 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--config", help="config file (default: <repo>/config.yaml)")
     ap.add_argument("--since", type=datetime.fromisoformat,
                     help="import recordings made on or after this date (YYYY-MM-DD), e.g. to backfill")
+    ap.add_argument("--no-wait", action="store_true",
+                    help="import what is ready and exit, instead of waiting for recordings still syncing")
     args = ap.parse_args(argv)
 
     cfg = load_config(args.config)
@@ -251,12 +294,16 @@ def main(argv: list[str] | None = None) -> None:
 
     with single_instance(paths.state / "iphone.lock") as ok:
         if not ok:
-            log.info("Another import is running; exiting")
+            log.info("An import is already running and will pick up new recordings; exiting")
             return
         importer = Importer(paths, dirs, ic.get("device_id", "iphone"), since, ic.get("settle_seconds", 30))
         if since:  # a backfill: look at files already skipped as too old
             importer.state.seen.clear()
-        importer.run_once()
+        try:
+            n = importer.run(max_wait=0 if args.no_wait else ic.get("max_wait_seconds", 600))
+        except KeyboardInterrupt:
+            return
+        log.info("Imported %d recording(s)", n)
 
 
 if __name__ == "__main__":

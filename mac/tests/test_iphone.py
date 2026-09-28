@@ -49,7 +49,7 @@ def test_time_from_filename():
 
 def test_imports_into_inbox_like_the_receiver(paths, memos):
     add_memo(memos)
-    assert importer(paths, memos).run_once() == 1
+    assert importer(paths, memos).run_once()[0] == 1
 
     [meta_path] = paths.inbox.glob("*.json")
     assert meta_path.stem == "2026-09-26_15-42-10"
@@ -77,29 +77,60 @@ def test_unknown_time_is_approximate(paths, memos):
 
 def test_each_recording_is_imported_once(paths, memos):
     add_memo(memos)
-    assert importer(paths, memos).run_once() == 1
+    assert importer(paths, memos).run_once()[0] == 1
     processor.run_once(paths, RecordingModels(), RecordingModels())  # archives it
-    assert importer(paths, memos).run_once() == 0
+    assert importer(paths, memos).run_once()[0] == 0
 
     # Same audio under a new name/mtime (e.g. re-synced): still a duplicate.
     add_memo(memos, "20260926 154210-1A2B3C4D copy.m4a", age_s=60)
-    assert importer(paths, memos).run_once() == 0
+    assert importer(paths, memos).run_once()[0] == 0
     assert not list(paths.inbox.iterdir())
 
 
 def test_first_run_ignores_existing_library(paths, memos):
     add_memo(memos)
-    assert Importer(paths, [memos], probe=lambda p: None, convert=fake_convert, settle_seconds=0).run_once() == 0
+    assert Importer(paths, [memos], probe=lambda p: None, convert=fake_convert, settle_seconds=0).run_once()[0] == 0
     # A new recording made after the first run is picked up.
     add_memo(memos, datetime.now().strftime("%Y-%m-%d_%H-%M-%S.m4a"), data=b"new", age_s=0)
-    assert Importer(paths, [memos], probe=lambda p: None, convert=fake_convert, settle_seconds=0).run_once() == 1
+    assert Importer(paths, [memos], probe=lambda p: None, convert=fake_convert, settle_seconds=0).run_once()[0] == 1
 
 
-def test_waits_until_file_settles(paths, memos):
+def test_skips_file_until_it_settles(paths, memos):
     add_memo(memos, age_s=0)
     assert Importer(paths, [memos], since=LONG_AGO, probe=lambda p: None, convert=fake_convert,
-                    settle_seconds=30).run_once() == 0
-    assert importer(paths, memos).run_once() == 1, "not marked as seen while settling"
+                    settle_seconds=30).run_once() == (0, 1)
+    assert importer(paths, memos).run_once() == (1, 0), "not marked as seen while settling"
+
+
+def test_run_waits_for_a_syncing_file(paths, memos):
+    """One folder-change event is enough: the run waits for the file to settle."""
+    add_memo(memos, age_s=0)
+    imp = Importer(paths, [memos], since=LONG_AGO, probe=lambda p: None, convert=fake_convert, settle_seconds=0.3)
+    assert imp.run(max_wait=5, poll=0.1) == 1
+
+
+def test_run_picks_up_files_that_arrive_while_waiting(paths, memos):
+    add_memo(memos, age_s=0)
+    imp = Importer(paths, [memos], since=LONG_AGO, probe=lambda p: None, convert=fake_convert, settle_seconds=0.3)
+    real_run_once, calls = imp.run_once, []
+
+    def run_once():
+        calls.append(1)
+        if len(calls) == 2:
+            add_memo(memos, "2026-09-26_15-50-00.m4a", data=b"second", age_s=0)
+        return real_run_once()
+
+    imp.run_once = run_once
+    assert imp.run(max_wait=5, poll=0.1) == 2
+
+
+def test_run_gives_up_waiting_after_max_wait(paths, memos):
+    add_memo(memos, age_s=0)
+    imp = Importer(paths, [memos], since=LONG_AGO, probe=lambda p: None, convert=fake_convert, settle_seconds=60)
+    start = time.monotonic()
+    assert imp.run(max_wait=0.3, poll=0.1) == 0
+    assert time.monotonic() - start < 2
+    assert importer(paths, memos).run_once() == (1, 0), "left for the next run"
 
 
 def test_retries_then_gives_up(paths, memos):
@@ -109,14 +140,14 @@ def test_retries_then_gives_up(paths, memos):
         raise RuntimeError("ffmpeg failed")
 
     imp = lambda: Importer(paths, [memos], since=LONG_AGO, probe=lambda p: None, convert=broken, settle_seconds=0)
-    for _ in range(3):
-        assert imp().run_once() == 0
-    assert importer(paths, memos).run_once() == 0, "gave up after 3 attempts"
+    assert imp().run_once() == (0, 1)
+    assert imp().run(max_wait=5, poll=0.01) == 0, "retries within the run, then gives up"
+    assert importer(paths, memos).run_once() == (0, 0), "gave up after 3 attempts"
     assert not list(paths.inbox.iterdir()) and not list(paths.incoming.iterdir())
 
 
 def test_missing_folder_is_skipped(paths, tmp_path):
-    assert importer(paths, tmp_path / "nope").run_once() == 0
+    assert importer(paths, tmp_path / "nope").run_once()[0] == 0
 
 
 def test_imported_note_goes_through_processor(paths, memos):
