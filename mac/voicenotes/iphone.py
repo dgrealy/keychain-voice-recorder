@@ -169,7 +169,13 @@ class Importer:
             if not d.is_dir():
                 log.warning("Watched folder %s does not exist (or no permission to read it)", d)
                 continue
-            for p in d.iterdir():
+            try:
+                entries = list(d.iterdir())
+            except PermissionError:
+                log.error("No permission to read %s. The Voice Memos folder needs Full Disk Access; "
+                          "an iCloud Drive folder needs iCloud Drive access (README.md)", d)
+                continue
+            for p in entries:
                 if p.name.startswith(".") and p.name.endswith(".icloud"):
                     subprocess.run(["brctl", "download", str(p)], capture_output=True)  # best effort
                     placeholders += 1
