@@ -140,6 +140,19 @@ timestamp in the file, and falls back to the file date, which the heading marks 
 commented-out `watch_dirs` line in `config.example.yaml` for that folder. macOS may ask you once
 to allow Python to access iCloud Drive.
 
+**Reading your notes on the phone.** Set `mac.notes_copy` in `config.yaml` to a file in iCloud
+Drive, for example the Shortcut folder:
+
+```yaml
+mac:
+  notes_copy: "~/Library/Mobile Documents/iCloud~is~workflow~my~workflows/Documents/VoiceNotes/notes.md"
+```
+
+The processor then keeps that copy up to date after every run (every new note, and every 15
+minutes). Open it on the iPhone in Files → iCloud Drive → Shortcuts → VoiceNotes → notes.md. It's a
+read-only copy: changes made on the phone are overwritten, and its audio and transcript links
+point to files on the Mac, so they won't open on the phone.
+
 ## 3. Keychain firmware
 
 Needs [PlatformIO](https://platformio.org) (`pip install platformio`, or the VS Code extension).

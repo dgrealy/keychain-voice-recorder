@@ -146,6 +146,19 @@ def test_retries_then_gives_up(paths, memos):
     assert not list(paths.inbox.iterdir()) and not list(paths.incoming.iterdir())
 
 
+def test_unreadable_folder_is_reported_not_raised(paths, memos, monkeypatch, caplog):
+    real_iterdir = type(memos).iterdir
+
+    def iterdir(self):
+        if self == memos:
+            raise PermissionError(1, "Operation not permitted")
+        return real_iterdir(self)
+
+    monkeypatch.setattr(type(memos), "iterdir", iterdir)
+    assert importer(paths, memos).run_once() == (0, 0)
+    assert "No permission to read" in caplog.text
+
+
 def test_missing_folder_is_skipped(paths, tmp_path):
     assert importer(paths, tmp_path / "nope").run_once()[0] == 0
 
