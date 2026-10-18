@@ -19,6 +19,7 @@ import argparse
 import fcntl
 import json
 import logging
+import os
 import time
 import traceback
 from contextlib import contextmanager
@@ -177,6 +178,34 @@ def run_once(paths: Paths, transcriber: SpeechToText, translator: Structurer, ma
     return added
 
 
+def mirror_notes(notes: Path, copy: Path) -> bool:
+    """Keep ``copy`` identical to ``notes`` (e.g. a read-only copy in iCloud Drive for the phone).
+
+    The copy is written beside its destination and renamed into place, so a reader never sees
+    half a file. Failures are logged, never raised: a missing copy must not stop processing.
+
+    Returns
+    -------
+    bool
+        ``True`` if the copy was (re)written.
+    """
+    if not notes.exists():
+        return False
+    try:
+        data = notes.read_bytes()
+        if copy.exists() and copy.read_bytes() == data:
+            return False
+        copy.parent.mkdir(parents=True, exist_ok=True)
+        tmp = copy.with_name(f".{copy.name}.tmp")
+        tmp.write_bytes(data)
+        os.replace(tmp, copy)
+    except OSError as e:
+        log.warning("Could not update the copy of %s at %s: %s", notes.name, copy, e)
+        return False
+    log.info("Updated the copy of %s at %s", notes.name, copy)
+    return True
+
+
 @contextmanager
 def single_instance(lock_path: Path) -> Iterator[bool]:
     """Yield ``True`` if this process holds the lock, ``False`` if another run already does."""
@@ -202,6 +231,7 @@ def main(argv: list[str] | None = None) -> None:
     setup_logging(paths.log)
     models = (FakeTranscriber(), FakeTranslator()) if args.fake_models else build_models(cfg)
     mac = cfg.get("mac", {})
+    notes_copy = resolve(mac["notes_copy"], Path.home()) if mac.get("notes_copy") else None
 
     with single_instance(paths.state / "processor.lock") as ok:
         if not ok:
@@ -209,6 +239,8 @@ def main(argv: list[str] | None = None) -> None:
             return
         while True:
             run_once(paths, *models, max_attempts=mac.get("max_attempts", 3))
+            if notes_copy:  # every run, so hand edits to the master are copied too
+                mirror_notes(paths.notes, notes_copy)
             if not args.watch:
                 break
             time.sleep(mac.get("poll_seconds", 30))

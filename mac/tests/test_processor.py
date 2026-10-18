@@ -116,3 +116,29 @@ def test_build_models_reads_config_and_prompts():
     assert messages[0]["role"] == "system" and "voice notes" in messages[0]["content"]
     assert len(messages) == 2 + 2 * len(examples)
     assert messages[-1] == {"role": "user", "content": "my transcript"}
+
+
+def test_mirror_notes_copies_and_keeps_up_to_date(paths, tmp_path):
+    copy = tmp_path / "iCloud" / "VoiceNotes" / "notes.md"
+    paths.notes.write_text("first\n")
+    assert processor.mirror_notes(paths.notes, copy)
+    assert copy.read_text() == "first\n"
+    assert not processor.mirror_notes(paths.notes, copy), "unchanged: not rewritten"
+
+    paths.notes.write_text("first\nsecond\n")
+    assert processor.mirror_notes(paths.notes, copy)
+    assert copy.read_text() == "first\nsecond\n"
+    assert [p.name for p in copy.parent.iterdir()] == ["notes.md"], "no temporary file left behind"
+
+
+def test_mirror_notes_without_master_does_nothing(paths, tmp_path):
+    assert not processor.mirror_notes(paths.notes, tmp_path / "copy.md")
+    assert not (tmp_path / "copy.md").exists()
+
+
+def test_mirror_notes_failure_is_logged_not_raised(paths, tmp_path, caplog):
+    paths.notes.write_text("x\n")
+    blocker = tmp_path / "not-a-folder"
+    blocker.write_text("")
+    assert not processor.mirror_notes(paths.notes, blocker / "notes.md")
+    assert "Could not update the copy" in caplog.text

@@ -41,6 +41,9 @@ mac:
   base_dir: "~/VoiceNotes"      # inbox/, archive/, failed/, notes.md and the log live here
   notes_file: "notes.md"        # relative to base_dir, or an absolute path
   log_file: "voicenotes.log"    # relative to base_dir, or an absolute path
+  # Optional read-only copy of notes.md, e.g. in iCloud Drive so you can read it on your phone.
+  # It is overwritten whenever notes.md changes: edit the master, not the copy.
+  notes_copy: ""                # e.g. "~/Library/Mobile Documents/iCloud~is~workflow~my~workflows/Documents/VoiceNotes/notes.md"
   poll_seconds: 30              # only used by `processor --watch`
   max_attempts: 3               # failed processing attempts before a note moves to failed/
 
